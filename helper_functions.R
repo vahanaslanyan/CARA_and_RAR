@@ -163,17 +163,66 @@ prepare_data_for_stan_rar<-function(data,type_interim="regression"){
 #function to get allocation probabilites from interim analysis
 #inputs are the stan fit, and the tuning parameter c (see paper)
 #output is a vector of allocation proportions
-get_allocation_prob<-function(fit,c){
-    #extract the betas from the stan fit
-    betas<-fit$summary(variables = c("beta_t"))
-    #turn the matrix into a dataframe and standardize the betas (to the first treatment)
-    betas<-as_tibble(betas)
-    betas$mean<-(betas$mean-betas$mean[1])/betas$sd[1]
-    #calculate the probability of each treatment being the best among the options
-    aux_prob<-pnorm(betas$mean)^(length(betas$mean))
-    #get new allocation proportion for each treatment
-    allocation_proportion<-(aux_prob^(c))/(sum(aux_prob^(c)))
-    return(allocation_proportion)
+get_allocation_prob<-function(fit,c, type_interim="regression",version="cara"){
+    if(type_interim!="regression" & type_interim!="MMRM"){
+      stop("type_interim should be either 'regression' or 'MMRM'")
+    }
+    if(type_interim=="regression"){
+        #extract the betas from the stan fit
+        betas<-fit$summary(variables = c("beta_t"))
+        betas<-as_tibble(betas)
+    }else{
+        #extract coefficient summary from the fit model (takes time)
+        betas <- fit$summary(variables = "beta")
+        #depending on the version (crar or rar) there are more or less rows in betas
+        if (version == "cara") {
+            betas$variable <-
+            c(
+            "(Intercept)",
+            "cov",
+            "timepointsfl",
+            "treatment2" ,
+            "treatment3"   ,
+            "treatment4" ,
+            "cov:timepointsfl" ,
+            "timepointsfl:treatment2",
+            "timepointsfl:treatment3",
+            "timepointsfl:treatment4"
+            )
+        } else{
+            betas$variable <-
+            c(
+            "(Intercept)",
+            "treatment2" ,
+            "treatment3",
+            "treatment4",
+            "timepointsfl" ,
+            "timepointsfl:treatment2",
+            "timepointsfl:treatment3",
+            "timepointsfl:treatment4"
+            )
+        }
+        #turn bettas into a data structure
+        betas <- as_tibble(betas)
+        #get only slopes for treatment 1-4, remove intercepts and irrelevant data
+        betas <-betas %>% filter(
+            variable %in% c(
+             "timepointsfl:treatment2",
+             "timepointsfl:treatment3",
+             "timepointsfl:treatment4"
+            )         
+        )
+    }
+  #scale everything as if they come from treatment 1
+  betas$mean <- (betas$mean - betas$mean[1]) / betas$sd[1]
+  #in normal distribution, probability of max is F(y)=P(y>X1,y>X2,y>X3,y>X4)=
+  #=P(y>X1)*P(y>X2)*P(y>X2)*P(y>X3)*P(y>X4),and since they all come from the same
+  #distribution, this turns into P(y>X_i)^n where n is the number of variables of interest
+  #P(y>x_i) in R is pnorm(x_i).
+  aux_prob <- pnorm(betas$mean) ^ (length(betas$mean))
+  #get new allocation proportion for each treatment
+  allocation_proportion<-(aux_prob^(c))/(sum(aux_prob^(c)))
+  return(allocation_proportion)
 }
 
 #function to add more data after interim analysis and make it ready for STAN input
@@ -189,12 +238,19 @@ append_stan_data<-function(data,data_new){
 }
 
 #this function gets covariate proportion imbalance in the sample
-get_effect_size<-function(data){
+get_effect_size<-function(data,type_interim="regression"){
+    if(type_interim!="regression" & type_interim!="MMRM"){
+      stop("type_interim should be either 'regression' or 'MMRM'")
+    }
+    if(type_interim=="MMRM"){
+          #get the baseline only since the randomization happens on baseline only
+        data<-data[data$timepoints=="bl",]
+    }
     #convert treatment and covariate to factors, for contingency table      
     data$treatment<-as.factor(data$treatment)
-    data$x<-as.factor(data$x)
+    data$covariate<-as.factor(data$covariate)
     #calculate effect size, using adjusted Cramer's V
-    imbalance<-cramers_v(data$treatment,data$x)$Cramers_v_adjusted
+    imbalance<-cramers_v(data$treatment,data$covariate)$Cramers_v_adjusted
     return(imbalance)
 }
 
