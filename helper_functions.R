@@ -86,64 +86,47 @@ data_handling<-function(data){
     return(data)
 }
 
-#prepare data for STAN input, using CARA
+#prepare data for STAN input, using CARA and RAR
 #input is a dataframe (from data_handling step), output is a list
-prepare_data_for_stan_cara<-function(data,type_interim="regression"){
+#randomization procedure is either CARA or RAR
+prepare_data_for_stan<-function(data,type_interim="regression", rand_procedure="CARA"){
     if(type_interim!="regression" & type_interim!="MMRM"){
       stop("type_interim should be either 'regression' or 'MMRM'")
     }
+    if(rand_procedure!="CARA" & rand_procedure!="RAR"){
+      stop("rand_procedure should be either 'CARA' or 'RAR'")
+    }
     if(type_interim=="regression"){
+    data<-data_handling(data)
     N <- nrow(data)
     K <- length(unique(data$treatment))
     # Prepare data for Stan
-    stan_data_crar <- list(
+    if(rand_procedure=="CARA"){
+    stan_data<- list(
         N = N,
         K = K,
         x=data$covariate,
         treatment = data[,-c(1:3)],
         y = data$y
     )
-    } else{
-    
-        data$treatment<-as.factor(data$treatment)
-        #create a simple model first, then extract the model matrix so we don't have 
-        #to dummify by hand
-        mod <- lm(y ~ cov * timepoints + treatment * timepoints, data)
-        x <- model.matrix(mod)
-        # Prepare data for Stan
-        stan_data_crar <- list(
-            Nobs = nrow(data),
-            Npreds = ncol(x),
-            Ngroups = length(unique(data$subjid)),
-            y = data$y,
-            x = x,
-            timevar = as.numeric(as.factor(data$timepoints)),
-            group = as.numeric(as.factor(data$subjid))
-        )
+    }else{   
+        stan_data <- list(
+        N = N,
+        K = K,
+        treatment = data[,-c(1:3)],
+        #covariate is not included in the RAR model
+        y = data$y
+      )
     }
-  return(stan_data_crar)
-}
-
-#prepare data for STAN input, using RAR
-#input is a dataframe (from data_handling step), output is a list
-prepare_data_for_stan_rar<-function(data,type_interim="regression"){
-   if(type_interim!="regression" & type_interim!="MMRM"){
-      stop("type_interim should be either 'regression' or 'MMRM'")
-    }
-    if(type_interim=="regression"){
-    N <- nrow(data)
-    K<-length(unique(data$treatment))
-    # Prepare data for Stan
-    stan_data <- list(
-    N = N,
-    K = K,
-    treatment = data[,-c(1:3)],
-    #covariate is not included in the RAR model
-    y = data$y
-    )
-    }else{
-        data$treatment<-as.factor(data$treatment)
-        mod <- lm(y ~ treatment * timepoints, data)
+    } else {
+         data$treatment<-as.factor(data$treatment)
+          #create a simple model first, then extract the model matrix so we don't have 
+          #to dummify by hand
+          if(rand_procedure=="CARA"){
+            mod <- lm(y ~ covariate * timepoints + treatment * timepoints, data)
+          }else{
+            mod <- lm(y ~ treatment * timepoints, data)
+          }
         x <- model.matrix(mod)
         # Prepare data for Stan
         stan_data <- list(
@@ -154,8 +137,7 @@ prepare_data_for_stan_rar<-function(data,type_interim="regression"){
         x = x,
         timevar = as.numeric(as.factor(data$timepoints)),
         group = as.numeric(as.factor(data$subjid))
-        )
-  
+          )
     }
   return(stan_data)
 }
