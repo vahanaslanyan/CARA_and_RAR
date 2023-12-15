@@ -1,14 +1,6 @@
-#load environment
-library(tidyverse)
-library(cmdstanr)
-library(data.table)
-library(stats)
-library(fastDummies)
-library(effectsize)
-library(stringi)
-library(stringr)
-library(cmdstanr)
-library(MASS)
+library(pacman)
+p_load(tidyverse,cmdstanr,data.table,stats,fastDummies,effectsize,stringi,stringr,cmdstanr,MASS)
+
 
 #function to generate data
 #N= number of observations to simulate
