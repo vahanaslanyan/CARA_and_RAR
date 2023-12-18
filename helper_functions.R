@@ -137,9 +137,12 @@ prepare_data_for_stan<-function(data,type_interim="regression", rand_procedure="
 #function to get allocation probabilites from interim analysis
 #inputs are the stan fit, and the tuning parameter c (see paper)
 #output is a vector of allocation proportions
-get_allocation_prob<-function(fit,c, type_interim="regression",version="cara"){
+get_allocation_prob<-function(fit,c, type_interim="regression",version="CARA"){
     if(type_interim!="regression" & type_interim!="MMRM"){
       stop("type_interim should be either 'regression' or 'MMRM'")
+    }
+    if(version!="CARA" & version!="RAR"){
+      stop("version should be either 'CARA' or 'RAR'")
     }
     if(type_interim=="regression"){
         #extract the betas from the stan fit
