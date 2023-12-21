@@ -1,5 +1,5 @@
 library(pacman)
-p_load(tidyverse,cmdstanr,data.table,stats,fastDummies,effectsize,stringi,stringr,cmdstanr,MASS)
+p_load(tidyverse,cmdstanr,data.table,stats,fastDummies,effectsize,stringi,stringr,cmdstanr,MASS,data.table)
 
 
 #function to generate data
@@ -21,19 +21,14 @@ simulate_data<- function(N=40, K=c(0:3),allocation_proportion=c(0.25,0.25,0.25,0
     if(type_interim!="regression" & type_interim!="MMRM"){
       stop("type_interim should be either 'regression' or 'MMRM'")
     }
-    #if one of the allocation proportions is lower than 1 percent, do not assign people to this treatment
-    if(any(allocation_proportion<0.01)){
-        allocation_proportion<-allocation_proportion[allocation_proportion>=0.01]
-        K<-K[allocation_proportion>=0.01]
-    }
     #generate covariate assignment
     cov<- rbinom(N, 1, theta)
     #generate treatment assignment
     treatment<-sample(K,N,replace=T,prob=allocation_proportion)
-    #if there is a scenario where no one gets assigned to a specific arm, resample
-        while(!length(unique(treatment))==length(K)){
-            treatment<-sample(K,N,replace=T,prob=theta)
-    }
+    # #if there is a scenario where no one gets assigned to a specific arm, resample
+    #     while(!length(unique(treatment))==length(K)){
+    #         treatment<-sample(K,N,replace=T,prob=theta)
+    # }
     if(type_interim=="regression")
     {
         #generate outcome, normal with mean treatment effect (and covariate effect), and standard deviation 10
@@ -137,6 +132,7 @@ prepare_data_for_stan<-function(data,type_interim="regression", rand_procedure="
 #function to get allocation probabilites from interim analysis
 #inputs are the stan fit, and the tuning parameter c (see paper)
 #output is a vector of allocation proportions
+#note that 4 arms are hardcoded.
 get_allocation_prob<-function(fit,c, type_interim="regression",version="CARA"){
     if(type_interim!="regression" & type_interim!="MMRM"){
       stop("type_interim should be either 'regression' or 'MMRM'")
@@ -152,7 +148,7 @@ get_allocation_prob<-function(fit,c, type_interim="regression",version="CARA"){
         #extract coefficient summary from the fit model (takes time)
         betas <- fit$summary(variables = "beta")
         #depending on the version (crar or rar) there are more or less rows in betas
-        if (version == "cara") {
+        if (version == "CARA") {
             betas$variable <-
             c(
             "(Intercept)",
@@ -179,11 +175,12 @@ get_allocation_prob<-function(fit,c, type_interim="regression",version="CARA"){
             "timepointsfl:treatment4"
             )
         }
-        #turn bettas into a data structure
+        #turn betas into a data structure
         betas <- as_tibble(betas)
         #get only slopes for treatment 1-4, remove intercepts and irrelevant data
         betas <-betas %>% filter(
             variable %in% c(
+              "timepointsfl",
              "timepointsfl:treatment2",
              "timepointsfl:treatment3",
              "timepointsfl:treatment4"
@@ -204,13 +201,20 @@ get_allocation_prob<-function(fit,c, type_interim="regression",version="CARA"){
 
 #function to add more data after interim analysis and make it ready for STAN input
 #inputs are two datasets, output is one dataframe
-append_stan_data<-function(data,data_new){
+append_stan_data<-function(data,data_new,type_interim="MMRM"){
+  if(type_interim!="regression" & type_interim!="MMRM"){
+    stop("type_interim should be either 'regression' or 'MMRM'")
+  }
     #process new block of generated data through data_handling()
+  if(type_interim=="regression"){
     data_new<-data_handling(data_new)
+  }
     #add the new data to the old data, and if a column is missing i data_new, fill it in
-    data<-rbind(data,data_new,fill=T)
+    data%>%bind_rows(data_new)->data
+    
     #all missing values are turned to 0 (no one gets assigned to treatment)
     data[is.na(data)]<-0
+    
     return(data)
 }
 
