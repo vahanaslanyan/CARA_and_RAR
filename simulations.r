@@ -144,7 +144,7 @@ for(i in 1:5000){
   aux_allocation_probs$allocation_prob_cara_final<-interim_df$interim_allocation_prob_cara
   aux_allocation_probs$allocation_prob_rar_final<-interim_df$interim_allocation_prob_rar
   
-  #tidy up results from the iteration of simulationx
+  #tidy up results from the iteration of simulation
   allocation_probs<-allocation_probs%>%bind_rows(aux_allocation_probs)
   effect_sizes<-effect_sizes%>%bind_rows(aux_effect_sizes)
   

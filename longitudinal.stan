@@ -24,5 +24,6 @@ transformed parameters {
 }
 model {
   etaslope ~ normal(0, 500);
+  sigmaeps ~ cauchy(0, 50);
   y ~ normal(yhat, sigmaeps);
 }
