@@ -1,2 +1,9 @@
 .DS_Store
 .Rhistory
+output/*
+
+# Exclude STAN Compiled Files
+stan_rar
+stan_cara
+longitudinal
+regression_trailblazer

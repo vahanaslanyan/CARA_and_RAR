@@ -1,4 +1,6 @@
-setwd("/Users/vahanaslanyan/Documents/CARA_and_RAR/")
+BASE_PATH<-"~/Documents/CARA_and_RAR/"
+OUTPUT_PATH<-paste0(BASE_PATH,"output/")
+setwd(BASE_PATH)
 #source helper functions
 source("helper_functions.R")
 #create and load STAN models from the code
@@ -150,8 +152,8 @@ for(i in 1:5000){
   
   #save interim results every 500 iterations
   if(i%%500==0){
-  write_csv(effect_sizes,paste0("effect_sizes_sim_",i,".csv"))
-  write_csv(allocation_probs,paste0("allocation_probabilities_sim_",i,".csv"))
+  write_csv(effect_sizes,paste0(OUTPUT_PATH,"effect_sizes_sim_",i,".csv"))
+  write_csv(allocation_probs,paste0(OUTPUT_PATH,"allocation_probabilities_sim_",i,".csv"))
   }
 }
 
